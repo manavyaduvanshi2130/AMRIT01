@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Community Health Monitoring System</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --secondary: #059669;
+      --accent: #dc2626;
+      --accent-light: #f87171;
+      --dark: #0f172a;
+      --darker: #020617;
+      --light: #f8fafc;
+      --gray: #94a3b8;
+      --glass-bg: rgba(255, 255, 255, 0.1);
+      --glass-border: rgba(255, 255, 255, 0.2);
+      --radius: 16px;
+      --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      --transition: all 0.3s ease;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 50%, #1e293b 100%);
+      color: var(--light); min-height: 100vh; line-height: 1.6; overflow-x: hidden;
+    }
+    /* Header */
+    header { background: rgba(15,23,42,0.95); padding: 1rem 2rem; position: sticky; top:0; z-index:1000; border-bottom:1px solid var(--glass-border);}
+    .navbar{max-width:1400px; margin:0 auto; display:flex; justify-content:space-between; align-items:center;}
+    .logo{font-size:1.8rem; font-weight:700; color:var(--light); text-decoration:none; display:flex; align-items:center; gap:0.5rem;}
+    .logo span{color:var(--secondary); background:linear-gradient(45deg, var(--secondary), var(--primary)); -webkit-background-clip:text; -webkit-text-fill-color:transparent;}
+    .logo i{font-size:2rem; color:var(--secondary);}
+    .nav-links{display:flex; list-style:none; gap:2rem;}
+    .nav-links a{color:var(--light); text-decoration:none; font-weight:500; padding:0.75rem 1.5rem; border-radius:var(--radius); transition:var(--transition); display:flex; align-items:center; gap:0.5rem;}
+    .nav-links a:hover, .nav-links a.active{background:var(--glass-bg); transform:translateY(-2px); box-shadow:0 4px 15px rgba(37,99,235,0.2);}
+    /* Hero */
+    .hero{min-height:60vh; display:flex; align-items:center; justify-content:center; padding:4rem 2rem;}
+    .hero-content{text-align:center; max-width:1200px;}
+    .hero h1{font-size:3rem; font-weight:700; margin-bottom:1.5rem; background:linear-gradient(45deg, var(--light), var(--secondary)); -webkit-background-clip:text; -webkit-text-fill-color:transparent;}
+    .hero p{font-size:1.3rem; margin-bottom:2rem; color:var(--gray);}
+    .hero-buttons{display:flex; gap:1.5rem; justify-content:center; flex-wrap:wrap;}
+    .cta-btn{padding:1rem 2rem; border-radius:var(--radius); font-weight:600; text-decoration:none;}
+    .cta-primary{background:linear-gradient(45deg, var(--primary), var(--secondary)); color:white;}
+    .cta-secondary{border:2px solid var(--secondary); color:var(--secondary);}
+    .cta-secondary:hover{background:var(--secondary); color:white;}
+    /* Sections */
+    .container{max-width:1200px; margin:auto; padding:2rem;}
+    .section{display:none; background:var(--glass-bg); border-radius:var(--radius); padding:2rem; margin-bottom:2rem;}
+    .section.active{display:block;}
+    .section h2{color:var(--secondary); margin-bottom:1rem; border-bottom:3px solid var(--primary);}
+    .form-grid{display:grid; gap:1rem;}
+    .form-control{width:100%; padding:1rem; background:rgba(15,23,42,0.3); border:1px solid var(--glass-border); border-radius:var(--radius); color:var(--light);}
+    .submit-btn{background:linear-gradient(45deg, var(--primary), var(--secondary)); color:white; padding:1rem 2rem; border:none; border-radius:var(--radius); cursor: pointer;}
+    /* Dashboard */
+    .dashboard-card{background:rgba(15,23,42,0.5); padding:1.5rem; border-radius:var(--radius); margin-bottom:1rem;}
+    .alert-list li{padding:0.75rem; border-radius:var(--radius); margin-bottom:0.5rem; display:flex; align-items:center; justify-content:space-between; background:rgba(15,23,42,0.3);}
+    .alert-list li.critical{background:rgba(220,38,38,0.1);}
+    .map-container{height:350px; margin-top:1rem; border-radius:var(--radius); overflow:hidden;}
+    .notification{position:fixed; top:20px; right:20px; background:var(--secondary); color:white; padding:1rem; border-radius:var(--radius); display:none;}
+    .notification.show{display:block;}
+    
+    /* Status Indicators */
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+      box-shadow: 0 0 4px rgba(0,0,0,0.3);
+    }
+    .status-solved { background-color: #22c55e; }
+    .status-processing { background-color: #eab308; }
+    .status-not-solved { background-color: #ef4444; }
+    
+    .report-controls {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    .status-btn {
+      padding: 0.3rem 0.8rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: var(--transition);
+      font-weight: 500;
+    }
+    
+    .btn-solve { background: #22c55e; color: white; }
+    .btn-process { background: #eab308; color: white; }
+    .btn-reject { background: #ef4444; color: white; }
+    
+    .btn-solve:hover { background: #16a34a; }
+    .btn-process:hover { background: #ca8a04; }
+    .btn-reject:hover { background: #dc2626; }
+    
+    /* Login screen */
+    #loginScreen {position:fixed; top:0; left:0; width:100%; height:100%; background:var(--dark); display:flex; justify-content:center; align-items:center; z-index:2000;}
+    .login-box {background:rgba(255,255,255,0.05); padding:2rem; border-radius:var(--radius); box-shadow:var(--shadow); width:300px; text-align:center;}
+    .login-box h2 {margin-bottom:1rem;}
+    .login-box input {width:100%; padding:0.75rem; margin-bottom:1rem; border-radius:var(--radius); border:none;}
+    .login-box button {width:100%; padding:0.75rem; background:var(--primary); color:white; border:none; border-radius:var(--radius); cursor: pointer;}
+  </style>
+</head>
+<body>
+<div id="loginScreen">
+  <div class="login-box">
+    <h2>Login</h2>
+    <input type="text" id="username" placeholder="Username" />
+    <input type="password" id="password" placeholder="Password" />
+    <button id="loginBtn">Login</button>
+    <p style="color:#f87171; margin-top:0.5rem;" id="loginError"></p>
+  </div>
+</div>
+
+<header>
+  <div class="navbar">
+    <a href="#" class="logo"><i class="fas fa-heartbeat"></i>AMRIT</a>
+    <ul class="nav-links">
+      <li><a href="#problem" class="active" data-section="problem">Problem</a></li>
+      <li><a href="#background" data-section="background">Background</a></li>
+      <li><a href="#solution" data-section="solution">Solution</a></li>
+      <li><a href="#report" data-section="report">Report</a></li>
+      <li><a href="#dashboard" data-section="dashboard">Dashboard</a></li>
+    </ul>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-content">
+    <h1>Smart Community Health Monitoring System</h1>
+    <p>Preventing water-borne disease outbreaks through AI-powered surveillance</p>
+    <div class="hero-buttons">
+      <a href="#report" class="cta-btn cta-primary" data-section="report">Report</a>
+      <a href="#dashboard" class="cta-btn cta-secondary" data-section="dashboard">Dashboard</a>
+    </div>
+  </div>
+</section>
+
+<div class="container">
+  <section id="problem" class="section active"><h2>Problem Statement</h2><p>Rural communities often face water-borne diseases like cholera, diarrhea, and hepatitis due to contaminated water, poor sanitation, and delayed response systems.</p></section>
+  
+  <section id="background" class="section"><h2>Background</h2><p>In remote areas of Northeast India, poor infrastructure and seasonal floods increase vulnerability to outbreaks. Limited connectivity and delayed reporting make timely intervention difficult.</p></section>
+  
+  <section id="solution" class="section">
+    <h2>Solution</h2>
+    <ul>
+      <li>✔ Promote use of clean, filtered, or boiled water.</li>
+      <li>✔ Ensure proper sanitation facilities and discourage open defecation.</li>
+      <li>✔ Conduct regular water quality monitoring using low-cost test kits or IoT sensors.</li>
+      <li>✔ Run community awareness programs in local languages.</li>
+      <li>✔ Provide real-time alerts and dashboards for health authorities.</li>
+      <li>✔ Encourage personal hygiene practices like handwashing with soap.</li>
+      <li>✔ Ensure quick medical response and stock essential medicines in rural clinics.</li>
+    </ul>
+  </section>
+
+  <!-- Report Form -->
+  <section id="report" class="section">
+    <h2>Community Health Reporting</h2>
+    <form id="healthReportForm" class="form-grid">
+      <input type="text" id="name" class="form-control" placeholder="Your name (optional)">
+      <input type="text" id="location" class="form-control" placeholder="Village/Area name" required>
+      <select id="symptoms" class="form-control" multiple required>
+        <option value="diarrhea">Diarrhea</option>
+        <option value="fever">Fever</option>
+        <option value="vomiting">Vomiting</option>
+        <option value="cholera">Cholera</option>
+        <option value="hepatitis">Hepatitis</option>
+        <option value="typhoid">Typhoid</option>
+      </select>
+      <select id="waterQuality" class="form-control" required>
+        <option value="">Water Quality Issue</option>
+        <option value="turbid">Turbid</option>
+        <option value="odor">Bad Odor</option>
+        <option value="contaminated">Contaminated</option>
+        <option value="none">None</option>
+      </select>
+      <input type="number" id="affectedPeople" class="form-control" placeholder="Number of affected people" min="1" required>
+      <textarea id="comments" class="form-control" placeholder="Additional comments or symptoms description"></textarea>
+      <button type="submit" class="submit-btn">Submit Report</button>
+    </form>
+    <div id="formMessage" class="notification">Report Submitted ✅</div>
+  </section>
+
+  <!-- Dashboard -->
+  <section id="dashboard" class="section">
+    <h2>Dashboard</h2>
+    <div class="dashboard-card">
+      <h4>Key Stats</h4>
+      <p>Total Reports: <span id="totalReports">0</span></p>
+      <p>Active Cases: <span id="activeCases">0</span></p>
+      <p>Solved Cases: <span id="solvedCases">0</span></p>
+      <p>Processing Cases: <span id="processingCases">0</span></p>
+      <p>Water Issues: <span id="waterIssues">0</span></p>
+      <p>Response Rate: <span id="responseRate">0%</span></p>
+    </div>
+    <div class="dashboard-card">
+      <h4>Recent Reports</h4>
+      <ul id="reportList" class="alert-list"></ul>
+    </div>
+    <div class="dashboard-card">
+      <h4>India Map</h4>
+      <div class="map-container" id="indiaMap"></div>
+    </div>
+    <div class="dashboard-card">
+      <h4>World Map</h4>
+      <div class="map-container" id="worldMap"></div>
+    </div>
+  </section>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // LOGIN SYSTEM
+  const loginScreen=document.getElementById("loginScreen");
+  const loginBtn=document.getElementById("loginBtn");
+  const loginError=document.getElementById("loginError");
+
+  loginBtn.addEventListener("click", ()=>{
+    const username=document.getElementById("username").value;
+    const password=document.getElementById("password").value;
+    // Demo credentials
+    if(username==="admin" && password==="1234"){
+      loginScreen.style.display="none";
+    } else {
+      loginError.textContent="Invalid Username or Password!";
+    }
+  });
+
+  const sections=document.querySelectorAll(".section");
+  const navLinks=document.querySelectorAll("[data-section]");
+  const form=document.getElementById("healthReportForm");
+  const formMessage=document.getElementById("formMessage");
+  let reports=JSON.parse(localStorage.getItem("reports"))||[];
+
+  // Init maps
+  const indiaMap=L.map('indiaMap').setView([22.9734,78.6569],5);
+  const worldMap=L.map('worldMap').setView([20,0],2);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(indiaMap);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(worldMap);
+
+  function showSection(id){
+    sections.forEach(s=>s.classList.remove("active"));
+    document.getElementById(id).classList.add("active");
+    navLinks.forEach(l=>l.classList.toggle("active",l.dataset.section===id));
+  }
+  navLinks.forEach(link=>link.addEventListener("click",e=>{
+    e.preventDefault(); showSection(link.dataset.section); window.scrollTo({top:0,behavior:"smooth"});
+  }));
+
+  function saveReports(){localStorage.setItem("reports",JSON.stringify(reports));}
+
+  function getStatusClass(status) {
+    switch(status) {
+      case 'solved': return 'status-solved';
+      case 'processing': return 'status-processing';
+      case 'not_solved': return 'status-not-solved';
+      default: return 'status-not-solved';
+    }
+  }
+
+  function getStatusText(status) {
+    switch(status) {
+      case 'solved': return 'Solved';
+      case 'processing': return 'Processing';
+      case 'not_solved': return 'Not Solved';
+      default: return 'Not Solved';
+    }
+  }
+
+  function updateReportStatus(reportIndex, newStatus) {
+    reports[reportIndex].status = newStatus;
+    saveReports();
+    updateDashboard();
+  }
+
+  function updateDashboard(){
+    document.getElementById("totalReports").textContent=reports.length;
+    document.getElementById("activeCases").textContent=reports.filter(r=>r.status==="not_solved").length;
+    document.getElementById("solvedCases").textContent=reports.filter(r=>r.status==="solved").length;
+    document.getElementById("processingCases").textContent=reports.filter(r=>r.status==="processing").length;
+    document.getElementById("waterIssues").textContent=reports.filter(r=>r.waterIssue!=="none").length;
+    let handled=reports.filter(r=>r.status==="solved").length;
+    let response=reports.length?Math.round((handled/reports.length)*100):0;
+    document.getElementById("responseRate").textContent=response+"%";
+
+    const list=document.getElementById("reportList"); 
+    list.innerHTML="";
+    
+    reports.slice(-10).reverse().forEach((r, index)=>{
+      let li=document.createElement("li");
+      li.innerHTML = `
+        <div>
+          <span class="status-indicator ${getStatusClass(r.status)}"></span>
+          <strong>${r.location}</strong> - ${r.symptoms.join(", ")} 
+          (${r.affectedPeople || 1} people affected) | Water: ${r.waterIssue}
+          <br><small>Status: ${getStatusText(r.status)} | ${new Date(r.time).toLocaleString()}</small>
+        </div>
+        <div class="report-controls">
+          <button class="status-btn btn-solve" onclick="updateReportStatus(${reports.length - 1 - index}, 'solved')">Solve</button>
+          <button class="status-btn btn-process" onclick="updateReportStatus(${reports.length - 1 - index}, 'processing')">Process</button>
+          <button class="status-btn btn-reject" onclick="updateReportStatus(${reports.length - 1 - index}, 'not_solved')">Reject</button>
+        </div>
+      `;
+      if(r.waterIssue!=="none") li.classList.add("critical");
+      list.appendChild(li);
+    });
+
+    // Clear old markers
+    indiaMap.eachLayer(layer=>{ if(layer instanceof L.Marker) indiaMap.removeLayer(layer); });
+    worldMap.eachLayer(layer=>{ if(layer instanceof L.Marker) worldMap.removeLayer(layer); });
+
+    // Add markers with status-based colors
+    reports.forEach(r=>{
+      if(r.lat && r.lng){
+        let iconColor;
+        switch(r.status) {
+          case 'solved': iconColor = 'green'; break;
+          case 'processing': iconColor = 'yellow'; break;
+          default: iconColor = 'red';
+        }
+        
+        let icon=L.icon({
+          iconUrl:`https://maps.gstatic.com/mapfiles/ms2/micons/${iconColor}-dot.png`,
+          iconSize:[24,24]
+        });
+        
+        let popupContent = `
+          <strong>${r.location}</strong><br>
+          Symptoms: ${r.symptoms.join(", ")}<br>
+          Affected: ${r.affectedPeople || 1} people<br>
+          Water Issue: ${r.waterIssue}<br>
+          Status: <span style="color: ${iconColor}; font-weight: bold;">${getStatusText(r.status)}</span>
+        `;
+        
+        L.marker([r.lat,r.lng],{icon}).addTo(indiaMap).bindPopup(popupContent);
+        L.marker([r.lat,r.lng],{icon}).addTo(worldMap).bindPopup(popupContent);
+      }
+    });
+  }
+
+  function getCoordinates(location){
+    // Enhanced coordinate generation based on Indian regions
+    const regions = {
+      'assam': {lat: 26.2006, lng: 92.9376},
+      'bihar': {lat: 25.0961, lng: 85.3131},
+      'bengal': {lat: 22.9868, lng: 87.8550},
+      'odisha': {lat: 20.9517, lng: 85.0985},
+      'up': {lat: 26.8467, lng: 80.9462}
+    };
+    
+    let baseCoords = regions['assam']; // Default to Assam
+    for(let region in regions) {
+      if(location.toLowerCase().includes(region)) {
+        baseCoords = regions[region];
+        break;
+      }
+    }
+    
+    return {
+      lat: baseCoords.lat + (Math.random() - 0.5) * 2,
+      lng: baseCoords.lng + (Math.random() - 0.5) * 2
+    };
+  }
+
+  form.addEventListener("submit",e=>{
+    e.preventDefault();
+    const report={
+      name:form.name.value||"Anonymous",
+      location:form.location.value,
+      symptoms:Array.from(form.symptoms.selectedOptions).map(o=>o.value),
+      waterIssue:form.waterQuality.value,
+      affectedPeople:parseInt(form.affectedPeople.value) || 1,
+      comments:form.comments.value,
+      status:"not_solved", // Default status
+      time:new Date().toISOString(),
+      ...getCoordinates(form.location.value)
+    };
+    reports.push(report); 
+    saveReports(); 
+    updateDashboard();
+    formMessage.classList.add("show"); 
+    setTimeout(()=>formMessage.classList.remove("show"),2000);
+    form.reset();
+  });
+
+  // Make updateReportStatus available globally
+  window.updateReportStatus = updateReportStatus;
+
+  updateDashboard(); 
+  showSection("problem");
+});
+</script>
+</body>
+</html>
